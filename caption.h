@@ -1,8 +1,8 @@
 #ifndef _CAPTION_
 #define _CAPTION_
 /*
-×ÖÄ»´¦ÀíÍ·ÎÄ¼ş
-20210810 ´´½¨ ÕÔº£Îä
+å­—å¹•å¤„ç†å¤´æ–‡ä»¶
+20210810 åˆ›å»º èµµæµ·æ­¦
 */
 #include <stdio.h>
 #include <stdint.h>
@@ -10,40 +10,56 @@
 class TimeInfo
 {
 	unsigned char buf[11];
+	void set_time(uint64_t t,unsigned char *buf)
+	{
+		buf[0] = (((t >> 30) & 0x07) << 1) + 0xF1;
+		buf[1] = ((t >> 22) & 0xFF);
+		buf[2] = (((t >> 15) & 0x7F) << 1) + 0x01;
+		buf[3] = ((t >> 7) & 0xFF);
+		buf[4] = (((t)& 0x7F) << 1) + 0x01;
+	}
+	void set_time(unsigned char h, unsigned char m, unsigned char s, unsigned short ms, unsigned char *buf)
+	{
+		buf[0] = h + 1; 
+		buf[1] = m + 1; 
+		buf[2] = s + 1;
+		//buf[3] = (ms + 1) >> 8;
+		//buf[4] = (ms + 1) & 0xFF;
+		buf[3] = (ms + 1) >> 2;
+		buf[4] = ((ms + 1) << 6) | 0x3F;
+	}
 public:
+	TimeInfo()
+	{
+		buf[0] = 0xA3;//ç›¸å¯¹äºèŠ‚ç›®å¼€å§‹æ—¶åˆ»ï¼Œæ—¶åˆ†ç§’æ¯«ç§’ï¼ŒæŒ‡å®šç»“æŸæ—¶åˆ»
+		for (int i = 1; i < 11; i++) buf[i] = 0x00;
+	}
 	TimeInfo(unsigned char ref, unsigned char format, unsigned char endtype)
 	{
 		buf[0] = (ref << 6) + (format << 4) + (endtype << 2) + 0x03;
 		for (int i = 1; i < 11; i++) buf[i] = 0x00;
 	}
-	TimeInfo()
+	void SetRef(unsigned char ref){ buf[0] = (buf[0] & 0x3F) + (ref << 6); }
+	void SetFormat(unsigned char format){ buf[0] = (buf[0] & 0xCF) + (format << 4); }
+	void SetEndtype(unsigned char endtype){ buf[0] = (buf[0] & 0xF3) + (endtype << 2); }
+	unsigned char GetRef(){ return buf[0] >> 6; }
+	unsigned char GetFormat(){ return (buf[0] >> 4) & 0x03; }
+	unsigned char GetEndtype(){ return (buf[0] >> 2) & 0x03; }
+	void SetStartTime(uint64_t st){ set_time(st, buf + 1); }
+	void SetEndTime(uint64_t et){ set_time(et, buf + 6); }
+	void SetStartTime(unsigned char h, unsigned char m, unsigned char s, unsigned short ms)
 	{
-		buf[0] = 0xA3;//Ïà¶ÔÓÚ½ÚÄ¿¿ªÊ¼Ê±¿Ì£¬Ê±·ÖÃëºÁÃë£¬Ö¸¶¨½áÊøÊ±¿Ì
-		for (int i = 1; i < 11; i++) buf[i] = 0x00;
+		set_time(h,m,s,ms, buf + 1);
 	}
-	void set_ref(unsigned char ref){ buf[0] = (buf[0] & 0x3F) + (ref << 6); }
-	void set_format(unsigned char format){ buf[0] = (buf[0] & 0xCF) + (format << 4); }
-	void set_endtype(unsigned char endtype){ buf[0] = (buf[0] & 0xF3) + (endtype << 2); }
-	unsigned char get_ref(){ return buf[0] >> 6; }
-	unsigned char get_format(){ return (buf[0] >> 4) & 0x03; }
-	unsigned char get_endtype(){ return (buf[0] >> 2) & 0x03; }
-	void set_start_time(uint64_t st);
-	void set_start_time(unsigned char h, unsigned char m, unsigned char s, unsigned short ms);
-	void set_end_time(uint64_t et);
-	void set_end_time(unsigned char h, unsigned char m, unsigned char s, unsigned short ms);
-	uint64_t get_start_time();
-	unsigned char get_start_time_h(){ return buf[1] - 1; }
-	unsigned char get_start_time_m(){ return buf[2] - 1; }
-	unsigned char get_start_time_s(){ return buf[3] - 1; }
-	unsigned short get_start_time_ms(){ return buf[4] * 256 + buf[5] - 1; }
-	unsigned char get_end_time_h(){ return buf[6] - 1; }
-	unsigned char get_end_time_m(){ return buf[7] - 1; }
-	unsigned char get_end_time_s(){ return buf[8] - 1; }
-	unsigned short get_end_time_ms(){ return buf[9] * 256 + buf[10] - 1; }
+	void SetEndTime(unsigned char h, unsigned char m, unsigned char s, unsigned short ms)
+	{
+		set_time(h, m, s, ms, buf + 6);
+	}
+
 	int ReadSrt(FILE *fin);
 	void printScn();
 	void printSrt(FILE *fsrt);
-	void printAVS(FILE *favs);
+	void printAVS(FILE *favs);//AVSå­—å¹•æ–‡ä»¶
 	void printES(FILE *fes){ fwrite(buf, 1, 11, fes); }
 };
 //-----------------------------------------------------------------------------
@@ -200,7 +216,7 @@ public:
 		startcode = 0x1C0; 
 		cctype = 1;
 		strcpy(language, "chn");
-		string_offset = 43;//Ê±¼äºÍ¸÷ÖÖ¸ñÊ½ÃèÊö¹²43¸ö×Ö½Ú£¬Ã»ÓĞÓÃ»§Êı¾İÊ±Õâ¸öÆ«ÒÆµÈÓÚ43.
+		string_offset = 43;//æ—¶é—´å’Œå„ç§æ ¼å¼æè¿°å…±43ä¸ªå­—èŠ‚ï¼Œæ²¡æœ‰ç”¨æˆ·æ•°æ®æ—¶è¿™ä¸ªåç§»ç­‰äº43.
 		length = 0; 
 		counter = 0; 
 	}
